@@ -106,6 +106,7 @@ export default function App() {
   const [live, setLive] = useState(null);
   const [history, setHistory] = useState([]);
   const [error, setError] = useState("");
+  const [selectedArea, setSelectedArea] = useState(1);
   const [sluiceAuto, setSluiceAuto] = useState(true);
   const [sluiceActive, setSluiceActive] = useState(false);
   const [pumpAuto, setPumpAuto] = useState(true);
@@ -139,8 +140,8 @@ export default function App() {
   const fetchAll = async () => {
     try {
       const [liveRes, histRes] = await Promise.all([
-        axios.get(`${API_BASE}/api/live`),
-        axios.get(`${API_BASE}/api/history`)
+        axios.get(`${API_BASE}/api/live?area=${selectedArea}`),
+        axios.get(`${API_BASE}/api/history?area=${selectedArea}`)
       ]);
 
       setLive(liveRes.data);
@@ -152,10 +153,12 @@ export default function App() {
   };
 
   useEffect(() => {
+    setLive(null);
+    setHistory([]);
     fetchAll();
     const id = setInterval(fetchAll, 3000);
     return () => clearInterval(id);
-  }, []);
+  }, [selectedArea]);
 
   const chartData = history.map((item) => ({
     ...item,
@@ -165,8 +168,40 @@ export default function App() {
   return (
     <div className="app">
       <header>
-        <h1>Smart Flood Monitoring Dashboard</h1>
-        <p>Live sensors + Flood risk prediction</p>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
+          <div>
+            <h1>Smart Flood Monitoring Dashboard</h1>
+            <p>Live sensors + Flood risk prediction</p>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <label htmlFor="area-select" style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.85rem", fontWeight: 600 }}>
+              Monitoring Area
+            </label>
+            <select
+              id="area-select"
+              value={selectedArea}
+              onChange={(e) => setSelectedArea(Number(e.target.value))}
+              style={{
+                background: "rgba(255,255,255,0.08)",
+                border: "1px solid rgba(255,255,255,0.2)",
+                borderRadius: "10px",
+                color: "#f8fafc",
+                padding: "8px 36px 8px 14px",
+                fontSize: "0.9rem",
+                fontWeight: 700,
+                cursor: "pointer",
+                outline: "none",
+                appearance: "none",
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffffff' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "right 12px center",
+              }}
+            >
+              <option value={1} style={{ background: "#1e293b" }}>Area 1</option>
+              <option value={2} style={{ background: "#1e293b" }}>Area 2</option>
+            </select>
+          </div>
+        </div>
       </header>
 
       {error && <div className="error">{error}</div>}
