@@ -129,9 +129,24 @@ class SensorPayload(BaseModel):
 # ---------------------------------------------------------------------------
 
 def _read_block(block_path: str) -> float:
-    """Read the 'Value' param of a Constant block and return as float."""
-    raw = eng.get_param(block_path, "Value")
-    return math.floor(float(raw) * 1000) / 1000   # 3 d.p., no rounding up
+    """Read the current value from a Simulink Display block via MATLAB eval."""
+    try:
+        block_type = eng.get_param(block_path, "BlockType")
+        if block_type == "Display":
+            # Use MATLAB eval with proper 1-based indexing (Python syntax fails here)
+            safe_path = block_path.replace("'", "''")
+            raw = eng.eval(
+                f"get_param('{safe_path}', 'RuntimeObject').InputPort(1).Data",
+                nargout=1
+            )
+            return math.floor(float(raw) * 1000) / 1000
+
+        # Fallback: Constant block
+        raw = eng.get_param(block_path, "Value")
+        return math.floor(float(raw) * 1000) / 1000
+    except Exception as e:
+        print(f"[Simulink] Error reading {block_path}: {e}")
+        return 0.0
 
 
 # ---------------------------------------------------------------------------
