@@ -1,5 +1,5 @@
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import datetime
 from collections import deque
 import threading
 import math
@@ -9,7 +9,7 @@ import time
 import matlab.engine
 import joblib
 import numpy as np
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -18,7 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # App setup
 # ---------------------------------------------------------------------------
 
-app = FastAPI(title="Flood Monitoring API", version="2.0.0")
+app = FastAPI(title="Flood Monitoring API", version="3.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -27,13 +27,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# ---------------------------------------------------------------------------
-# ML model (optional – falls back to heuristic if not trained yet)
-# ---------------------------------------------------------------------------
-
-MODEL_PATH = Path(__file__).parent / "model" / "flood_risk_model.joblib"
-model = joblib.load(MODEL_PATH) if MODEL_PATH.exists() else None
 
 # ---------------------------------------------------------------------------
 # MATLAB / Simulink – auto-launch on startup
@@ -61,58 +54,62 @@ for b in blocks:
     print(" ", b)
 
 # ---------------------------------------------------------------------------
-# Block paths inside the model  (Simulink uses "<ModelName>/<BlockName>")
+# Per-area configuration
+# Area 1 → RiverLevel, RainLevel, SoilMoisture, FloodRisk
+# Area 2 → RiverLevel2, RainLevel2, SoilMoisture2, FloodRisk2
 # ---------------------------------------------------------------------------
 
-BLOCK_RIVER    = f"{SLX_NAME}/RiverLevel"
-BLOCK_RAIN     = f"{SLX_NAME}/RainLevel"
-BLOCK_SOIL     = f"{SLX_NAME}/SoilMoisture"
-BLOCK_RISK     = f"{SLX_NAME}/FloodRisk"
-
-# ---------------------------------------------------------------------------
-# Dataset CSV logging
-# ---------------------------------------------------------------------------
-
-DATASET_PATH = Path(__file__).parent / "Dataset.csv"
+BACKEND_DIR = Path(__file__).parent
 CSV_HEADERS  = ["timestamp", "river_level", "rain_level", "soil_moisture"]
 LOG_INTERVAL = 10   # seconds between each logged row
 
-# Write header row if the file is empty / brand new
-if not DATASET_PATH.exists() or DATASET_PATH.stat().st_size == 0:
-    with open(DATASET_PATH, "w", newline="") as _f:
-        csv.writer(_f).writerow(CSV_HEADERS)
+AREAS: dict = {
+    1: {
+        "river":      f"{SLX_NAME}/RiverLevel",
+        "rain":       f"{SLX_NAME}/RainLevel",
+        "soil":       f"{SLX_NAME}/SoilMoisture",
+        "risk":       f"{SLX_NAME}/FloodRisk",
+        "sensors": {
+            "river": [f"{SLX_NAME}/River1_{i}" for i in range(1, 5)],
+            "rain":  [f"{SLX_NAME}/Rain1_{i}" for i in range(1, 5)],
+            "soil":  [f"{SLX_NAME}/Soil1_{i}" for i in range(1, 5)],
+        },
+        "dataset":    BACKEND_DIR / "Dataset1.csv",
+        "model_path": BACKEND_DIR / "models" / "current" / "model_area1.joblib",
+        "history":    deque(maxlen=60),
+        "model":      None,
+    },
+    2: {
+        "river":      f"{SLX_NAME}/RiverLevel2",
+        "rain":       f"{SLX_NAME}/RainLevel2",
+        "soil":       f"{SLX_NAME}/SoilMoisture2",
+        "risk":       f"{SLX_NAME}/FloodRisk2",
+        "sensors": {
+            "river": [f"{SLX_NAME}/River2_{i}" for i in range(1, 5)],
+            "rain":  [f"{SLX_NAME}/Rain2_{i}" for i in range(1, 5)],
+            "soil":  [f"{SLX_NAME}/Soil2_{i}" for i in range(1, 5)],
+        },
+        "dataset":    BACKEND_DIR / "Dataset2.csv",
+        "model_path": BACKEND_DIR / "models" / "current" / "model_area2.joblib",
+        "history":    deque(maxlen=60),
+        "model":      None,
+    },
+}
 
+# Load models per area (falls back to heuristic if not trained yet)
+for _area_id, _cfg in AREAS.items():
+    if _cfg["model_path"].exists():
+        _cfg["model"] = joblib.load(_cfg["model_path"])
+        print(f"[Model] Area {_area_id}: loaded from {_cfg['model_path'].name}")
+    else:
+        print(f"[Model] Area {_area_id}: no model file found, using heuristic")
 
-def _log_to_csv() -> None:
-    """Background thread: read sensors every LOG_INTERVAL seconds and append to Dataset.csv."""
-    while True:
-        time.sleep(LOG_INTERVAL)
-        try:
-            river   = _read_block(BLOCK_RIVER)
-            rain    = _read_block(BLOCK_RAIN)
-            soil    = _read_block(BLOCK_SOIL)
-            ts      = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            with open(DATASET_PATH, "a", newline="") as _f:
-                csv.writer(_f).writerow([ts,
-                                         round(river, 3),
-                                         round(rain,  3),
-                                         round(soil,  3)])
-        except Exception as e:
-            print(f"[CSV Logger] Error writing row: {e}")
-
-
-_csv_thread = threading.Thread(target=_log_to_csv, daemon=True, name="csv-logger")
-_csv_thread.start()
-print(f"[CSV Logger] Started – appending to '{DATASET_PATH.name}' every {LOG_INTERVAL}s")
-
-
-# ---------------------------------------------------------------------------
-# In-memory history for dashboard trend chart
-# ---------------------------------------------------------------------------
-
-history: deque = deque(maxlen=60)
-_lock = threading.Lock()    # guard against concurrent /api/live polls
-
+# Initialise CSV headers for each area
+for _area_id, _cfg in AREAS.items():
+    _ds = _cfg["dataset"]
+    if not _ds.exists() or _ds.stat().st_size == 0:
+        with open(_ds, "w", newline="") as _f:
+            csv.writer(_f).writerow(CSV_HEADERS)
 
 # ---------------------------------------------------------------------------
 # Pydantic models
@@ -125,7 +122,7 @@ class SensorPayload(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Helper: read one float from a Simulink Constant block
+# Helper: read one float from a Simulink Display (or Constant) block
 # ---------------------------------------------------------------------------
 
 def _read_block(block_path: str) -> float:
@@ -146,14 +143,134 @@ def _read_block(block_path: str) -> float:
         return math.floor(float(raw) * 1000) / 1000
     except Exception as e:
         print(f"[Simulink] Error reading {block_path}: {e}")
-        return 0.0
+        return None
 
 
 # ---------------------------------------------------------------------------
-# ML / heuristic prediction
+# CSV background logger – one thread, logs all areas every LOG_INTERVAL secs
 # ---------------------------------------------------------------------------
 
-def predict_risk(river_level: float, rain_level: float, soil_moisture: float) -> dict:
+def _log_to_csv() -> None:
+    """Background thread: read sensors for every area and append to their CSVs."""
+    while True:
+        time.sleep(LOG_INTERVAL)
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        for area_id, cfg in AREAS.items():
+            try:
+                river = _read_block(cfg["river"])
+                rain  = _read_block(cfg["rain"])
+                soil  = _read_block(cfg["soil"])
+                river = river if river is not None else 0.0
+                rain = rain if rain is not None else 0.0
+                soil = soil if soil is not None else 0.0
+                
+                with open(cfg["dataset"], "a", newline="") as _f:
+                    csv.writer(_f).writerow([ts,
+                                             round(river, 3),
+                                             round(rain,  3),
+                                             round(soil,  3)])
+            except Exception as e:
+                print(f"[CSV Logger] Area {area_id} error: {e}")
+
+
+_csv_thread = threading.Thread(target=_log_to_csv, daemon=True, name="csv-logger")
+_csv_thread.start()
+print(f"[CSV Logger] Started – logging all areas every {LOG_INTERVAL}s")
+
+
+# ---------------------------------------------------------------------------
+# Unified background poller – ALL MATLAB I/O lives here, /api/live reads cache
+# ---------------------------------------------------------------------------
+
+POLL_INTERVAL = 1  # seconds between full read cycles
+
+# Live cache: { area_id: {...full payload...} | None }
+_live_cache: dict = {area_id: None for area_id in AREAS}
+
+# Individual sensor cache: { area_id: { "river": [...], ... } }
+_sensor_cache: dict = {
+    area_id: {"river": [None]*4, "rain": [None]*4, "soil": [None]*4}
+    for area_id in AREAS
+}
+
+
+def _poll_simulink() -> None:
+    """Background thread: read ALL Simulink blocks for all areas and update caches."""
+    while True:
+        time.sleep(POLL_INTERVAL)
+        for area_id, cfg in AREAS.items():
+            hist = cfg["history"]
+
+            # --- Fused (averaged) reads ---
+            river_level   = _read_block(cfg["river"])
+            rain_level    = _read_block(cfg["rain"])
+            soil_moisture = _read_block(cfg["soil"])
+
+            if river_level is None or rain_level is None or soil_moisture is None:
+                if hist:
+                    last = hist[-1]
+                    river_level   = river_level   if river_level   is not None else last.get("river_level",   0.0)
+                    rain_level    = rain_level    if rain_level    is not None else last.get("rain_level",    0.0)
+                    soil_moisture = soil_moisture if soil_moisture is not None else last.get("soil_moisture", 0.0)
+                else:
+                    river_level   = river_level   if river_level   is not None else 0.0
+                    rain_level    = rain_level    if rain_level    is not None else 0.0
+                    soil_moisture = soil_moisture if soil_moisture is not None else 0.0
+
+            ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            reading = {
+                "timestamp":     ts,
+                "river_level":   round(river_level,   3),
+                "rain_level":    round(rain_level,    3),
+                "soil_moisture": round(soil_moisture, 3),
+            }
+            hist.append(reading)
+
+            pred       = predict_risk(river_level, rain_level, soil_moisture, cfg["model"])
+            flood_type = classify_flood_type(river_level, rain_level, soil_moisture, pred["risk_level"])
+            trends     = compute_trends(hist)
+
+            # Write FloodRisk back to Simulink
+            try:
+                eng.set_param(cfg["risk"], "Value",
+                              str(pred["flood_probability"]), nargout=0)
+            except Exception as e:
+                print(f"[ERROR] Area {area_id} writing FloodRisk: {e}")
+
+            # --- Individual sensor reads ---
+            ind = {"river": [], "rain": [], "soil": []}
+            for s_type, paths in cfg["sensors"].items():
+                for p in paths:
+                    try:
+                        val = _read_block(p)
+                        ind[s_type].append(round(val, 3) if val is not None else None)
+                    except Exception:
+                        ind[s_type].append(None)
+            _sensor_cache[area_id] = ind
+
+            # --- Update live cache ---
+            _live_cache[area_id] = {
+                "timestamp":       ts,
+                "river_level":     {"fused_value": round(river_level,   3), "sensors": ind["river"]},
+                "rain_level":      {"fused_value": round(rain_level,    3), "sensors": ind["rain"]},
+                "soil_moisture":   {"fused_value": round(soil_moisture, 3), "sensors": ind["soil"]},
+                **pred,
+                "trends":          trends,
+                "flood_type":      flood_type,
+            }
+
+
+_poll_thread = threading.Thread(target=_poll_simulink, daemon=True, name="simulink-poller")
+_poll_thread.start()
+print(f"[Poller] Started – reading all Simulink blocks every {POLL_INTERVAL}s")
+
+
+# ---------------------------------------------------------------------------
+# ML / heuristic prediction  (model is per-area)
+# ---------------------------------------------------------------------------
+
+def predict_risk(river_level: float, rain_level: float,
+                 soil_moisture: float, model) -> dict:
     if model is None:
         score = (
             0.9  * river_level
@@ -179,7 +296,7 @@ def predict_risk(river_level: float, rain_level: float, soil_moisture: float) ->
 
 
 # ---------------------------------------------------------------------------
-# Trend computation
+# Trend computation  (operates on a given history deque)
 # ---------------------------------------------------------------------------
 
 TREND_THRESHOLDS = {
@@ -189,13 +306,13 @@ TREND_THRESHOLDS = {
 }
 
 
-def compute_trends() -> dict:
+def compute_trends(hist: deque) -> dict:
     """Compare the most recent reading against 3 readings ago."""
     default = {k: "stable" for k in TREND_THRESHOLDS}
-    if len(history) < 4:
+    if len(hist) < 4:
         return default
-    curr = history[-1]
-    prev = history[-4]
+    curr = hist[-1]
+    prev = hist[-4]
     trends: dict = {}
     for key, threshold in TREND_THRESHOLDS.items():
         delta = curr[key] - prev[key]
@@ -241,71 +358,44 @@ def classify_flood_type(river_level: float, rain_level: float,
 @app.get("/health")
 def health():
     return {
-        "status":       "ok",
-        "model_loaded": model is not None,
+        "status": "ok",
+        "areas":  {
+            str(a): {"model_loaded": cfg["model"] is not None}
+            for a, cfg in AREAS.items()
+        }
     }
 
 
 @app.get("/api/live")
-def live_data():
+def live_data(area: int = Query(1, ge=1, le=2)):
     """
-    1. Read RiverLevel / RainLevel / SoilMoisture from Simulink via get_param.
-    2. Run flood-risk prediction.
-    3. Write FloodRisk (0-1) back to Simulink via set_param.
-    4. Return full payload to the React dashboard.
+    Return the latest cached readings for the selected area.
+    All MATLAB I/O happens in the background poller thread – this endpoint
+    is non-blocking and returns in microseconds.
     """
-    with _lock:
-        try:
-            river_level   = _read_block(BLOCK_RIVER)
-            rain_level    = _read_block(BLOCK_RAIN)
-            soil_moisture = _read_block(BLOCK_SOIL)
-        except Exception as e:
-            print(f"[ERROR] Reading Simulink blocks: {e}")
-            # Use last known values from history if read fails
-            if history:
-                last = history[-1]
-                river_level   = last["river_level"]
-                rain_level    = last["rain_level"]
-                soil_moisture = last["soil_moisture"]
-            else:
-                river_level, rain_level, soil_moisture = 0.0, 0.0, 0.0
-
-        ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        reading = {
-            "timestamp":     ts,
-            "river_level":   round(river_level,   3),
-            "rain_level":    round(rain_level,    3),
-            "soil_moisture": round(soil_moisture, 3),
+    cached = _live_cache.get(area)
+    if cached is None:
+        # Poller hasn't completed its first cycle yet – return a loading sentinel
+        return {
+            "timestamp":       datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "river_level":     {"fused_value": 0.0, "sensors": [None]*4},
+            "rain_level":      {"fused_value": 0.0, "sensors": [None]*4},
+            "soil_moisture":   {"fused_value": 0.0, "sensors": [None]*4},
+            "flood_probability": 0.0,
+            "risk_level":      "LOW",
+            "trends":          {"river_level": "stable", "rain_level": "stable", "soil_moisture": "stable"},
+            "flood_type":      None,
         }
-        history.append(reading)
-
-        pred = predict_risk(river_level, rain_level, soil_moisture)
-
-        # Write FloodRisk back to Simulink
-        try:
-            eng.set_param(BLOCK_RISK, "Value",
-                          str(pred["flood_probability"]), nargout=0)
-        except Exception as e:
-            print(f"[ERROR] Writing FloodRisk to Simulink: {e}")
-
-    trends     = compute_trends()
-    flood_type = classify_flood_type(river_level, rain_level,
-                                     soil_moisture, pred["risk_level"])
-
-    return {
-        **reading,
-        **pred,
-        "trends":     trends,
-        "flood_type": flood_type,
-    }
+    return cached
 
 
 @app.get("/api/history")
-def get_history():
-    return list(history)
+def get_history(area: int = Query(1, ge=1, le=2)):
+    return list(AREAS[area]["history"])
 
 
 @app.post("/api/predict")
-def manual_predict(payload: SensorPayload):
-    pred = predict_risk(payload.river_level, payload.rain_level, payload.soil_moisture)
+def manual_predict(payload: SensorPayload, area: int = Query(1, ge=1, le=2)):
+    pred = predict_risk(payload.river_level, payload.rain_level,
+                        payload.soil_moisture, AREAS[area]["model"])
     return {"input": payload.model_dump(), **pred}
