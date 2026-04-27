@@ -12,6 +12,16 @@ __pycache__/
 *$py.class
 .ipynb_checkpoints/
 
+# Auto-generated model files (recreated when script runs)
+models/
+best_model.pkl
+anchor_set.csv
+holdout_test.csv
+region_a_data.csv
+region_b_data.csv
+realtime_log.csv
+flood_model_results_*.png
+
 # System files
 .DS_Store
 Thumbs.db
