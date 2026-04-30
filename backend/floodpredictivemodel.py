@@ -548,4 +548,4 @@ if __name__ == "__main__":
           f"({'FLOOD' if result['flood_occurrence'] else 'NO FLOOD'})")
     print(f"  confidence_score : {result['confidence_score']} "
           f"({result['confidence_score']*100:.1f}%)")
-    print(f"  → Passing to Simulink controller")
+    print(f" Passing to Simulink controller")
