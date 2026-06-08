@@ -1,14 +1,50 @@
 # ENG30002
 AI Powered Flood Prediction Dashboard
 
-To run, first ensure Matlab is intalled (R2025a) and node.js. 
+## Setup
 
-1. Inside frontend folder run: npm install
-2. Then inside the bacckend folder, run: pip install -r requirements.txt
+Ensure the following are installed:
+- Python 3.8+
+- Node.js
+- MATLAB R2025a (for Simulink models)
 
-To run the files
-1. Backend: uvicorn app:app --reload --port 8000
-2. Frontend: npm run dev
+### Install Dependencies
+
+```bash
+# Backend
+cd backend
+pip install -r requirements.txt
+
+# Frontend
+cd frontend
+npm install
+```
+
+## Running the Application
+
+### Backend Command 1: Start FastAPI Server
+```bash
+cd backend
+python -m uvicorn app:app --reload
+```
+Runs in: `./backend`  
+Server available at: `http://localhost:8000`
+
+### Backend Command 2: Model Training/Initialization
+```bash
+cd backend
+python main.py
+```
+Runs in: `./backend`  
+Purpose: Train and initialize the flood prediction model
+
+### Frontend Command: Start Dev Server
+```bash
+cd frontend
+npm run dev
+```
+Runs in: `./frontend`  
+Frontend available at: `http://localhost:5173` (Vite default)
 
 # Flood Prediction Backend — NCR Philippines
 

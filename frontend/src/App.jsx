@@ -959,7 +959,7 @@ export default function App() {
           {/* Logo */}
           <div style={{ display: "flex", alignItems: "center", gap: "10px", color: T.statusInfo, fontWeight: 700, letterSpacing: "0.15em", fontSize: "14px" }}>
             <img src={logoUrl} alt="FloodWatch Logo" style={{ width: "40px", height: "40px", borderRadius: "50%", objectFit: "cover", border: `2px solid ${T.statusInfo}` }} />
-            FLOODWATCH
+            FLOOD WATCH
           </div>
           <div className="nav-links">
             <span className={`nav-link ${selectedArea === "overall" ? "active" : ""}`} onClick={() => setSelectedArea("overall")}>Overall</span>

@@ -38,7 +38,7 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 
 PROJECT_DIR = Path(__file__).parent.parent          # …/Dashboard_Testing
-SLX_NAME    = "flood_drainage_system_2_R2025a"                    # no extension
+SLX_NAME    = "SensorFusion_Controller_Model"                    # no extension
 SLX_PATH    = str(PROJECT_DIR / f"{SLX_NAME}.slx")
 
 print("[Simulink] Starting MATLAB engine …")
@@ -71,16 +71,37 @@ _last_log_at = {1: 0.0, 2: 0.0}
 
 AREAS: dict = {
     1: {
-        "river":      f"{SLX_NAME}/RiverLevel",
-        "rain":       f"{SLX_NAME}/RainLevel",
-        "soil":       f"{SLX_NAME}/SoilMoisture",
+        "river":      f"{SLX_NAME}/RiverLevel_1",
+        "rain":       f"{SLX_NAME}/RainLevel_1",
+        "soil":       f"{SLX_NAME}/SoilMoisture_1",
         "flood_flag":  f"{SLX_NAME}/FloodFlag1",
         "confidence_score": f"{SLX_NAME}/ConfidenceScore1",
         # Dashboard → Simulink control blocks
         "sluice_blk": f"{SLX_NAME}/SluiceGate_1",
         "pump_blk":   f"{SLX_NAME}/WaterPump_1",
-        "sluice_display": f"{SLX_NAME}/Gate",
-        "pump_display":   f"{SLX_NAME}/Pump",
+        "override_blk": f"{SLX_NAME}/InfraOverride_1",
+        "sluice_display": f"{SLX_NAME}/Gate_1",
+        "pump_display":   f"{SLX_NAME}/Pump_1",
+        "rule_blocks": {
+            "fri": [
+                f"{SLX_NAME}/Flood Risk Index (FRI)_1",
+                f"{SLX_NAME}/FRI_1",
+                f"{SLX_NAME}/Flood Risk Index (FRI)",
+                f"{SLX_NAME}/FRI",
+            ],
+            "risk_text": [
+                f"{SLX_NAME}/Flood Risk Text Display_1",
+                f"{SLX_NAME}/Flood Risk Text_1",
+                f"{SLX_NAME}/Flood Risk Text Display",
+                f"{SLX_NAME}/Flood Risk Text",
+            ],
+            "flood_type": [
+                f"{SLX_NAME}/Flood TYPE Display_1",
+                f"{SLX_NAME}/Final Flood Type_1",
+                f"{SLX_NAME}/Flood TYPE Display",
+                f"{SLX_NAME}/Final Flood Type",
+            ],
+        },
         "sensors": {
             "river": [f"{SLX_NAME}/River1_{i}" for i in range(1, 4)],
             "rain":  [f"{SLX_NAME}/Rain1_{i}" for i in range(1, 4)],
@@ -97,33 +118,41 @@ AREAS: dict = {
         "model":      None,
     },
     2: {
-        #"river":      f"{SLX_NAME}/RiverLevel2",
-        #"rain":       f"{SLX_NAME}/RainLevel2",
-        #"soil":       f"{SLX_NAME}/SoilMoisture2",
-        #"flood_flag":  f"{SLX_NAME}/FloodFlag2",
-        #"confidence_score": f"{SLX_NAME}/ConfidenceScore2",
+        "river":      f"{SLX_NAME}/RiverLevel_2",
+        "rain":       f"{SLX_NAME}/RainLevel_2",
+        "soil":       f"{SLX_NAME}/SoilMoisture_2",
+        "flood_flag":  f"{SLX_NAME}/FloodFlag2",
+        "confidence_score": f"{SLX_NAME}/ConfidenceScore2",
         # Dashboard → Simulink control blocks
-        #"sluice_blk": f"{SLX_NAME}/SluiceGate2",
-        #"pump_blk":   f"{SLX_NAME}/WaterPump2",
-        #"sensors": {
-        #    "river": [f"{SLX_NAME}/River2_{i}" for i in range(1, 4)],
-        #    "rain":  [f"{SLX_NAME}/Rain2_{i}" for i in range(1, 4)],
-        #    "soil":  [f"{SLX_NAME}/Soil2_{i}" for i in range(1, 4)],
-        #},
-        "river":      f"{SLX_NAME}/RiverLevel",
-        "rain":       f"{SLX_NAME}/RainLevel",
-        "soil":       f"{SLX_NAME}/SoilMoisture",
-        "flood_flag":  f"{SLX_NAME}/FloodFlag1",
-        "confidence_score": f"{SLX_NAME}/ConfidenceScore1",
-        # Dashboard → Simulink control blocks
-        "sluice_blk": f"{SLX_NAME}/SluiceGate_1",
-        "pump_blk":   f"{SLX_NAME}/WaterPump_1",
-        "sluice_display": f"{SLX_NAME}/Gate",
-        "pump_display":   f"{SLX_NAME}/Pump",
+        "sluice_blk": f"{SLX_NAME}/SluiceGate_2",
+        "pump_blk":   f"{SLX_NAME}/WaterPump_2",
+        "override_blk": f"{SLX_NAME}/InfraOverride_2",
+        "sluice_display": f"{SLX_NAME}/Gate_2",
+        "pump_display":   f"{SLX_NAME}/Pump_2",
+        "rule_blocks": {
+            "fri": [
+                f"{SLX_NAME}/Flood Risk Index (FRI)_2",
+                f"{SLX_NAME}/FRI_2",
+                f"{SLX_NAME}/Flood Risk Index (FRI)",
+                f"{SLX_NAME}/FRI",
+            ],
+            "risk_text": [
+                f"{SLX_NAME}/Flood Risk Text Display_2",
+                f"{SLX_NAME}/Flood Risk Text_2",
+                f"{SLX_NAME}/Flood Risk Text Display",
+                f"{SLX_NAME}/Flood Risk Text",
+            ],
+            "flood_type": [
+                f"{SLX_NAME}/Flood TYPE Display_2",
+                f"{SLX_NAME}/Final Flood Type_2",
+                f"{SLX_NAME}/Flood TYPE Display",
+                f"{SLX_NAME}/Final Flood Type",
+            ],
+        },
         "sensors": {
-            "river": [f"{SLX_NAME}/River1_{i}" for i in range(1, 4)],
-            "rain":  [f"{SLX_NAME}/Rain1_{i}" for i in range(1, 4)],
-            "soil":  [f"{SLX_NAME}/Soil1_{i}" for i in range(1, 4)],
+            "river": [f"{SLX_NAME}/River2_{i}" for i in range(1, 4)],
+            "rain":  [f"{SLX_NAME}/Rain2_{i}" for i in range(1, 4)],
+            "soil":  [f"{SLX_NAME}/Soil2_{i}" for i in range(1, 4)],
         },
         "sensor_elevations": {
             "river": [0.0, 0.0, 0.0],
@@ -415,22 +444,24 @@ def _region_elevation(cfg: dict, sensor_values: dict) -> float:
 
 
 def _rule_based_snapshot(river_level: float, rain_level: float, soil_moisture: float,
-                         flood_type_label: str | None) -> dict:
+                         flood_type_label: str | None, rule_blocks: dict | None = None) -> dict:
     """Return rule-based values from Simulink when available, with a local fallback."""
-    fri = _try_read_first(RULE_BLOCKS["fri"])
+    blocks = rule_blocks or RULE_BLOCKS
+
+    fri = _try_read_first(blocks["fri"])
     if fri is None:
         fri = min(
             max((rain_level / 100) + (river_level / 10) + (soil_moisture / 100), 0),
             1,
         )
 
-    risk_text = _try_read_first(RULE_BLOCKS["risk_text"])
+    risk_text = _try_read_first(blocks["risk_text"])
     if risk_text is None:
         risk_text = _risk_text_from_fri(float(fri))
     else:
         risk_text = str(risk_text)
 
-    flood_type = _try_read_first(RULE_BLOCKS["flood_type"])
+    flood_type = _try_read_first(blocks["flood_type"])
     if flood_type is None:
         flood_type = _flood_type_code(flood_type_label)
 
@@ -504,7 +535,13 @@ def _poll_fast() -> None:
             pred       = predict_risk(river_level, rain_level, soil_moisture, elevation_m, cfg["model"])
             flood_type = classify_flood_type(river_level, rain_level, soil_moisture, pred["risk_level"])
             trends     = compute_trends(hist)
-            rule_based = _rule_based_snapshot(river_level, rain_level, soil_moisture, flood_type)
+            rule_based = _rule_based_snapshot(
+                river_level,
+                rain_level,
+                soil_moisture,
+                flood_type,
+                cfg.get("rule_blocks"),
+            )
             controls   = _control_readback(cfg)
 
             # Write prediction data back to Simulink
@@ -764,10 +801,10 @@ def set_controls(payload: ControlPayload, area: int = Query(1, ge=1, le=2)):
         errors.append(err)
 
     try:
-        eng.set_param(f"{SLX_NAME}/InfraOverride", "Value", str(payload.override), nargout=0)
+        eng.set_param(cfg["override_blk"], "Value", str(payload.override), nargout=0)
         print(f"[Controls] InfraOverride flag → {payload.override}")
     except Exception as e:
-        err = f"InfraOverride set_param failed: {e}"
+        err = f"Area {area} InfraOverride set_param failed: {e}"
         print(f"[ERROR] {err}")
         errors.append(err)
 
