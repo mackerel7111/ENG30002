@@ -37,11 +37,7 @@ app.add_middleware(
 # MATLAB / Simulink – auto-launch on startup
 # ---------------------------------------------------------------------------
 
-<<<<<<< HEAD
 PROJECT_DIR = Path(__file__).parent.parent          # …/Dashboard_Testing
-=======
-PROJECT_DIR = Path(r"C:\Users\USER\Documents\Degree Year 3\Engineering Sustainability Project\Dashboard_Testing")
->>>>>>> eb32a67ef960aaec393b0cf96c3750bb979ac7ab
 SLX_NAME    = "SensorFusion_Controller_Model"                    # no extension
 SLX_PATH    = str(PROJECT_DIR / f"{SLX_NAME}.slx")
 
@@ -87,7 +83,6 @@ AREAS: dict = {
         "sluice_display": f"{SLX_NAME}/Gate_1",
         "pump_display":   f"{SLX_NAME}/Pump_1",
         "rule_blocks": {
-<<<<<<< HEAD
             "fri": [
                 f"{SLX_NAME}/Flood Risk Index (FRI)_1",
                 f"{SLX_NAME}/FRI_1",
@@ -106,11 +101,6 @@ AREAS: dict = {
                 f"{SLX_NAME}/Flood TYPE Display",
                 f"{SLX_NAME}/Final Flood Type",
             ],
-=======
-            "fri": [f"{SLX_NAME}/Flood Risk Index (FRI)_1", f"{SLX_NAME}/FRI_1"],
-            "risk_text": [f"{SLX_NAME}/Flood Risk Text Display_1", f"{SLX_NAME}/Flood Risk Text_1"],
-            "flood_type": [f"{SLX_NAME}/Flood TYPE Display_1", f"{SLX_NAME}/Final Flood Type_1"],
->>>>>>> eb32a67ef960aaec393b0cf96c3750bb979ac7ab
         },
         "sensors": {
             "river": [f"{SLX_NAME}/River1_{i}" for i in range(1, 4)],
@@ -134,29 +124,12 @@ AREAS: dict = {
         "flood_flag":  f"{SLX_NAME}/FloodFlag2",
         "confidence_score": f"{SLX_NAME}/ConfidenceScore2",
         # Dashboard → Simulink control blocks
-<<<<<<< HEAD
-=======
-        #"sluice_blk": f"{SLX_NAME}/SluiceGate2",
-        #"pump_blk":   f"{SLX_NAME}/WaterPump2",
-        #"sensors": {
-        #    "river": [f"{SLX_NAME}/River2_{i}" for i in range(1, 4)],
-        #    "rain":  [f"{SLX_NAME}/Rain2_{i}" for i in range(1, 4)],
-        #    "soil":  [f"{SLX_NAME}/Soil2_{i}" for i in range(1, 4)],
-        #},
-        "river":      f"{SLX_NAME}/RiverLevel_2",
-        "rain":       f"{SLX_NAME}/RainLevel_2",
-        "soil":       f"{SLX_NAME}/SoilMoisture_2",
-        "flood_flag":  f"{SLX_NAME}/FloodFlag2",
-        "confidence_score": f"{SLX_NAME}/ConfidenceScore2",
-        # Dashboard → Simulink control blocks
->>>>>>> eb32a67ef960aaec393b0cf96c3750bb979ac7ab
         "sluice_blk": f"{SLX_NAME}/SluiceGate_2",
         "pump_blk":   f"{SLX_NAME}/WaterPump_2",
         "override_blk": f"{SLX_NAME}/InfraOverride_2",
         "sluice_display": f"{SLX_NAME}/Gate_2",
         "pump_display":   f"{SLX_NAME}/Pump_2",
         "rule_blocks": {
-<<<<<<< HEAD
             "fri": [
                 f"{SLX_NAME}/Flood Risk Index (FRI)_2",
                 f"{SLX_NAME}/FRI_2",
@@ -175,11 +148,6 @@ AREAS: dict = {
                 f"{SLX_NAME}/Flood TYPE Display",
                 f"{SLX_NAME}/Final Flood Type",
             ],
-=======
-            "fri": [f"{SLX_NAME}/Flood Risk Index (FRI)_2", f"{SLX_NAME}/FRI_2"],
-            "risk_text": [f"{SLX_NAME}/Flood Risk Text Display_2", f"{SLX_NAME}/Flood Risk Text_2"],
-            "flood_type": [f"{SLX_NAME}/Flood TYPE Display_2", f"{SLX_NAME}/Final Flood Type_2"],
->>>>>>> eb32a67ef960aaec393b0cf96c3750bb979ac7ab
         },
         "sensors": {
             "river": [f"{SLX_NAME}/River2_{i}" for i in range(1, 4)],
@@ -834,11 +802,7 @@ def set_controls(payload: ControlPayload, area: int = Query(1, ge=1, le=2)):
 
     try:
         eng.set_param(cfg["override_blk"], "Value", str(payload.override), nargout=0)
-<<<<<<< HEAD
-        print(f"[Controls] InfraOverride flag → {payload.override}")
-=======
         print(f"[Controls] Area {area} InfraOverride flag -> {payload.override}")
->>>>>>> eb32a67ef960aaec393b0cf96c3750bb979ac7ab
     except Exception as e:
         err = f"Area {area} InfraOverride set_param failed: {e}"
         print(f"[ERROR] {err}")
