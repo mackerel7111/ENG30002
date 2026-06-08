@@ -13,6 +13,7 @@ import {
 } from "recharts";
 
 const API_BASE = "http://127.0.0.1:8000";
+const CHART_WINDOW = 60;
 
 /* ── Design tokens (mirror of CSS custom properties for inline use) ─────────*/
 const T = {
@@ -592,7 +593,7 @@ function SliderControl({ title, value, setValue, onCommit, disabled, unit, color
    ══════════════════════════════════════════════════════════════════════════ */
 function MiniTrendChart({ data, dataKey, color, name, unit, referenceLine, isPercent, domain }) {
   const chartData = isPercent
-    ? data.map(d => ({ ...d, _mappedVal: d[dataKey] * 100 }))
+    ? data.map(d => ({ ...d, _mappedVal: d[dataKey] == null ? null : d[dataKey] * 100 }))
     : data;
   const actualDataKey = isPercent ? "_mappedVal" : dataKey;
 
@@ -607,7 +608,16 @@ function MiniTrendChart({ data, dataKey, color, name, unit, referenceLine, isPer
             label={{ value: referenceLine.label, position: "insideTopRight", fill: referenceLine.stroke, fontSize: 11, fontFamily: "monospace" }}
           />
         )}
-        <XAxis dataKey="t" stroke={T.borderSubtle} tick={{ fill: T.textMuted, fontFamily: "monospace", fontSize: 11 }} minTickGap={30} />
+        <XAxis
+          type="number"
+          dataKey="slot"
+          domain={[0, CHART_WINDOW - 1]}
+          ticks={[0, 15, 30, 45, 59]}
+          tickFormatter={(v) => chartData[v]?.t || ""}
+          stroke={T.borderSubtle}
+          tick={{ fill: T.textMuted, fontFamily: "monospace", fontSize: 11 }}
+          allowDecimals={false}
+        />
         <YAxis stroke={T.borderSubtle} tick={{ fill: T.textMuted, fontFamily: "monospace", fontSize: 11 }} domain={domain || [0, "auto"]} />
         <CartesianGrid strokeDasharray="3 3" stroke={T.borderDefault} vertical={false} />
         <Tooltip
@@ -948,7 +958,18 @@ export default function App() {
     return () => { clearInterval(id); abortController.abort(); };
   }, [selectedArea]);
 
-  const chartData = history.map(item => ({ ...item, t: item.timestamp?.split(" ")[1] || item.timestamp }));
+  const recentHistory = history.slice(-CHART_WINDOW);
+  const paddedHistory = [
+    ...Array(Math.max(0, CHART_WINDOW - recentHistory.length)).fill(null),
+    ...recentHistory,
+  ];
+  const chartData = paddedHistory.map((item, index) => ({
+    slot: index,
+    t: item?.timestamp?.split(" ")[1] || "",
+    river_level: item?.river_level ?? null,
+    rain_level: item?.rain_level ?? null,
+    soil_moisture: item?.soil_moisture ?? null,
+  }));
   const statusInfo = live ? GLOBAL_STATUS[live.risk_level] || GLOBAL_STATUS.LOW : null;
 
   return (
